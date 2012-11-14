@@ -34,5 +34,65 @@ namespace KinectPeopleTracker.Properties {
                 this["ComPort"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0, 240")]
+        public global::System.Drawing.Point Threshold {
+            get {
+                return ((global::System.Drawing.Point)(this["Threshold"]));
+            }
+            set {
+                this["Threshold"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool InvertDirection {
+            get {
+                return ((bool)(this["InvertDirection"]));
+            }
+            set {
+                this["InvertDirection"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool UseSize {
+            get {
+                return ((bool)(this["UseSize"]));
+            }
+            set {
+                this["UseSize"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool InvertSize {
+            get {
+                return ((bool)(this["InvertSize"]));
+            }
+            set {
+                this["InvertSize"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool EnableArm {
+            get {
+                return ((bool)(this["EnableArm"]));
+            }
+            set {
+                this["EnableArm"] = value;
+            }
+        }
     }
 }

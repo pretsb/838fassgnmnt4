@@ -14,6 +14,9 @@ namespace KinectPeopleTracker
         //public const int DEFAULT_BAUD_RATE = 115200;
 
         private SerialPort sp;
+
+        private bool connected = false;
+        public bool IsConnected { get { return connected; } }
         
         public Arduino()
         {
@@ -34,12 +37,16 @@ namespace KinectPeopleTracker
 
         public bool Connect()
         {
-            return OpenPort(Properties.Settings.Default.ComPort, DEFAULT_BAUD_RATE);
+            bool success = OpenPort(Properties.Settings.Default.ComPort, DEFAULT_BAUD_RATE);
+            if (success) connected = true;
+            return success;
         }
 
         public bool Disconnect()
         {
-            return ClosePort();
+            bool success = ClosePort();
+            connected = false;
+            return success;
         }
 
         public void Send(string text)
