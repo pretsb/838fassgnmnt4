@@ -11,6 +11,8 @@ using Microsoft.Kinect;
 using System.Drawing.Imaging;
 using System.IO.Ports;
 
+using AForge.Video.FFMPEG;
+
 namespace KinectPeopleTracker
 {
     public partial class Form1 : Form
@@ -32,6 +34,9 @@ namespace KinectPeopleTracker
 
         private bool positioningExit = false;
         private Dictionary<int, List<Tuple<PointF, int>>> trackedPeople;
+
+        private VideoFileWriter videoOut = null;
+        private bool recording = false;
 
         public Form1()
         {
@@ -85,7 +90,8 @@ namespace KinectPeopleTracker
                         double averageIntensity = totalIntensity / ((double)frame.Width * frame.Height);
 
                         // lights off
-                        if (averageIntensity < 50) arduino.Send("move");
+                        if (averageIntensity < 50) 
+                            arduino.Send("move");
 
                         frame.Dispose();
                         lastColor = DateTime.Now;
@@ -176,6 +182,7 @@ namespace KinectPeopleTracker
                             Point threshold = Properties.Settings.Default.Threshold;
 
                             // check for people who have disappeared and increment/decrement the counter
+                            List<int> toRemove = new List<int>();
                             foreach (KeyValuePair<int, List<Tuple<PointF, int>>> person in trackedPeople)
                             {
                                 if (!people.ContainsKey(person.Key))
@@ -207,10 +214,14 @@ namespace KinectPeopleTracker
                                     if (increment) personCount++;
 
                                     // stop tracking this person
-                                    trackedPeople.Remove(person.Key);
+                                    toRemove.Add(person.Key);
                                 }
                             }
 
+                            foreach (int index in toRemove)
+                                trackedPeople.Remove(index);
+
+                            if (recording && videoOut != null) videoOut.WriteVideoFrame(depthImage);
                             Invoke(new MethodInvoker(delegate { DisplayPanel.Refresh(); }));
                         }
 
@@ -314,6 +325,33 @@ namespace KinectPeopleTracker
                 arduino.Disconnect();
                 arduino.Connect();
             }
+        }
+
+        private void RecordVideoButton_Click(object sender, EventArgs e)
+        {
+            if (!recording)
+            {
+                videoOut = new AForge.Video.FFMPEG.VideoFileWriter();
+                videoOut.Open("test.avi", 640, 480, 30, AForge.Video.FFMPEG.VideoCodec.WMV2);
+                recording = true;
+                RecordVideoButton.Text = "Stop Recording";
+            }
+            else
+            {
+                recording = false;
+                videoOut.Close();
+                videoOut = null;
+                RecordVideoButton.Text = "Record Video";
+            }
+            
+            //AVIWriter aviOut = new AVIWriter();
+            //aviOut.FrameRate = (int)30;
+            //aviOut.Open("test.avi", 640, 480);
+        }
+
+        private void ManualWaveButton_Click(object sender, EventArgs e)
+        {
+            arduino.Send("move");
         }      
     }
 }

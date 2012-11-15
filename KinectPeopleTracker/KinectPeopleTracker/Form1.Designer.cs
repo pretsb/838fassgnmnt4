@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             this.ToolPanel = new System.Windows.Forms.Panel();
+            this.RecordVideoButton = new System.Windows.Forms.Button();
             this.PortChooser = new System.Windows.Forms.ComboBox();
             this.ArmCheckbox = new System.Windows.Forms.CheckBox();
             this.ResetCounterButton = new System.Windows.Forms.Button();
@@ -37,11 +38,14 @@
             this.InvertDirectionCheckbox = new System.Windows.Forms.CheckBox();
             this.ThresholdButton = new System.Windows.Forms.Button();
             this.DisplayPanel = new DistanceDemos.DoubleBufferedPanel();
+            this.ManualWaveButton = new System.Windows.Forms.Button();
             this.ToolPanel.SuspendLayout();
             this.SuspendLayout();
             // 
             // ToolPanel
             // 
+            this.ToolPanel.Controls.Add(this.ManualWaveButton);
+            this.ToolPanel.Controls.Add(this.RecordVideoButton);
             this.ToolPanel.Controls.Add(this.PortChooser);
             this.ToolPanel.Controls.Add(this.ArmCheckbox);
             this.ToolPanel.Controls.Add(this.ResetCounterButton);
@@ -54,6 +58,16 @@
             this.ToolPanel.Name = "ToolPanel";
             this.ToolPanel.Size = new System.Drawing.Size(200, 480);
             this.ToolPanel.TabIndex = 1;
+            // 
+            // RecordVideoButton
+            // 
+            this.RecordVideoButton.Location = new System.Drawing.Point(11, 97);
+            this.RecordVideoButton.Name = "RecordVideoButton";
+            this.RecordVideoButton.Size = new System.Drawing.Size(177, 50);
+            this.RecordVideoButton.TabIndex = 7;
+            this.RecordVideoButton.Text = "Record Video";
+            this.RecordVideoButton.UseVisualStyleBackColor = true;
+            this.RecordVideoButton.Click += new System.EventHandler(this.RecordVideoButton_Click);
             // 
             // PortChooser
             // 
@@ -89,7 +103,7 @@
             // InvertSizeCheckbox
             // 
             this.InvertSizeCheckbox.AutoSize = true;
-            this.InvertSizeCheckbox.Location = new System.Drawing.Point(11, 195);
+            this.InvertSizeCheckbox.Location = new System.Drawing.Point(11, 335);
             this.InvertSizeCheckbox.Name = "InvertSizeCheckbox";
             this.InvertSizeCheckbox.Size = new System.Drawing.Size(121, 17);
             this.InvertSizeCheckbox.TabIndex = 3;
@@ -100,7 +114,7 @@
             // SizeCheckbox
             // 
             this.SizeCheckbox.AutoSize = true;
-            this.SizeCheckbox.Location = new System.Drawing.Point(11, 172);
+            this.SizeCheckbox.Location = new System.Drawing.Point(11, 312);
             this.SizeCheckbox.Name = "SizeCheckbox";
             this.SizeCheckbox.Size = new System.Drawing.Size(73, 17);
             this.SizeCheckbox.TabIndex = 2;
@@ -111,7 +125,7 @@
             // InvertDirectionCheckbox
             // 
             this.InvertDirectionCheckbox.AutoSize = true;
-            this.InvertDirectionCheckbox.Location = new System.Drawing.Point(11, 149);
+            this.InvertDirectionCheckbox.Location = new System.Drawing.Point(11, 289);
             this.InvertDirectionCheckbox.Name = "InvertDirectionCheckbox";
             this.InvertDirectionCheckbox.Size = new System.Drawing.Size(98, 17);
             this.InvertDirectionCheckbox.TabIndex = 1;
@@ -121,7 +135,7 @@
             // 
             // ThresholdButton
             // 
-            this.ThresholdButton.Location = new System.Drawing.Point(11, 105);
+            this.ThresholdButton.Location = new System.Drawing.Point(11, 245);
             this.ThresholdButton.Name = "ThresholdButton";
             this.ThresholdButton.Size = new System.Drawing.Size(179, 23);
             this.ThresholdButton.TabIndex = 0;
@@ -138,6 +152,16 @@
             this.DisplayPanel.TabIndex = 0;
             this.DisplayPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.DisplayPanel_Paint);
             this.DisplayPanel.MouseClick += new System.Windows.Forms.MouseEventHandler(this.DisplayPanel_MouseClick);
+            // 
+            // ManualWaveButton
+            // 
+            this.ManualWaveButton.Location = new System.Drawing.Point(11, 395);
+            this.ManualWaveButton.Name = "ManualWaveButton";
+            this.ManualWaveButton.Size = new System.Drawing.Size(179, 23);
+            this.ManualWaveButton.TabIndex = 8;
+            this.ManualWaveButton.Text = "Wave Arm";
+            this.ManualWaveButton.UseVisualStyleBackColor = true;
+            this.ManualWaveButton.Click += new System.EventHandler(this.ManualWaveButton_Click);
             // 
             // Form1
             // 
@@ -168,6 +192,8 @@
         private System.Windows.Forms.CheckBox SizeCheckbox;
         private System.Windows.Forms.CheckBox ArmCheckbox;
         private System.Windows.Forms.ComboBox PortChooser;
+        private System.Windows.Forms.Button RecordVideoButton;
+        private System.Windows.Forms.Button ManualWaveButton;
     }
 }
 
