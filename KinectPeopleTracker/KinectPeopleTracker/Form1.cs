@@ -22,10 +22,18 @@ namespace KinectPeopleTracker
         private DateTime lastColor = DateTime.Now;
         private DateTime lastDepth = DateTime.Now;
 
+        private enum WaveState { Vertical, Left, Right, Other };
+        private WaveState wavingState = WaveState.Other;
+        private int waveTimeout = 1000;
+        int waveCounter = 0;
+        private DateTime lastWaveState = DateTime.Now;
+
         private KinectSensor sensor;
         private Color[] playerColors = { Color.White, Color.Blue, Color.Red, Color.Green, Color.Yellow, Color.Cyan, Color.Magenta };
-        private Bitmap depthImage = null;
+        private Bitmap depthImage = null, colorImage = null;
+        private Bitmap videoFrame = null;
         private DepthImagePixel[] depthData;
+        private Skeleton[] skeletons = new Skeleton[0];
         private byte[] colorData;
         private int personCount = 0;
         private Font personCountFont;
@@ -62,6 +70,7 @@ namespace KinectPeopleTracker
                 sensor.SkeletonStream.Enable();
                 sensor.ColorFrameReady += new EventHandler<ColorImageFrameReadyEventArgs>(sensor_ColorFrameReady);
                 sensor.DepthFrameReady += new EventHandler<DepthImageFrameReadyEventArgs>(sensor_DepthFrameReady);
+                sensor.SkeletonFrameReady += new EventHandler<SkeletonFrameReadyEventArgs>(sensor_SkeletonFrameReady);
 
                 depthData = new DepthImagePixel[sensor.DepthStream.FramePixelDataLength];
                 colorData = new byte[sensor.ColorStream.FramePixelDataLength];
@@ -69,6 +78,81 @@ namespace KinectPeopleTracker
                 sensor.Start();
                 sensor.ElevationAngle = 0;
             }
+        }
+
+        void sensor_SkeletonFrameReady(object sender, SkeletonFrameReadyEventArgs e)
+        {
+            try
+            {
+                SkeletonFrame frame = e.OpenSkeletonFrame();
+
+                if (frame != null)
+                {
+                    if (this.skeletons.Length != frame.SkeletonArrayLength)
+                    {
+                        this.skeletons = new Skeleton[frame.SkeletonArrayLength];
+                    }
+                    frame.CopySkeletonDataTo(this.skeletons);
+
+                    // Assume no nearest skeleton and that the nearest skeleton is a long way away.
+                    double nearestDistance2 = double.MaxValue;
+                    int skeletonIndex = -1;
+
+                    // Look through the skeletons.
+                    int i = 0;
+                    foreach (var skeleton in this.skeletons)
+                    {
+                        // Only consider tracked skeletons.
+                        if (skeleton.TrackingState == SkeletonTrackingState.Tracked)
+                        {
+                            // Find the distance squared.
+                            var distance2 = (skeleton.Position.X * skeleton.Position.X) +
+                                (skeleton.Position.Y * skeleton.Position.Y) +
+                                (skeleton.Position.Z * skeleton.Position.Z);
+
+                            // Is the new distance squared closer than the nearest so far?
+                            if (distance2 < nearestDistance2)
+                            {
+                                // Use the new values.
+                                nearestDistance2 = distance2;
+                                skeletonIndex = i;
+                            }
+                        }
+                        i++;
+                    }
+
+                    // process skeletons, look for gesture
+                    if (skeletonIndex >= 0 && skeletons[skeletonIndex].TrackingState == SkeletonTrackingState.Tracked)
+                    {
+                        SkeletonPoint elbow = skeletons[skeletonIndex].Joints[JointType.ElbowRight].Position;
+                        SkeletonPoint wrist = skeletons[skeletonIndex].Joints[JointType.WristRight].Position;
+                        float dx = wrist.X - elbow.X;
+                        float dy = wrist.Y - elbow.Y;
+                        double angle = Math.Atan2(dy, dx);
+                        WaveState formerState = wavingState;
+                        if (angle >= 0 && angle < Math.PI / 3.0) wavingState = WaveState.Right;
+                        else if (angle >= Math.PI / 3.0 && angle < 2 * Math.PI / 3.0) wavingState = WaveState.Vertical;
+                        else if (angle >= 2 * Math.PI / 3.0 && angle < Math.PI) wavingState = WaveState.Left;
+                        else wavingState = WaveState.Other;
+
+                        if (waveCounter > 0 && (DateTime.Now - lastWaveState).TotalMilliseconds > waveTimeout)
+                            waveCounter = 0;
+                        else
+                        {
+                            if (formerState != wavingState && formerState != WaveState.Other && wavingState != WaveState.Other)
+                            {
+                                waveCounter++;
+                                lastWaveState = DateTime.Now;
+                            }
+                        }
+
+                        if (waveCounter >= 3) arduino.Send("move");
+                    }
+
+                    frame.Dispose();
+                }
+            }
+            catch { }
         }
 
         void sensor_ColorFrameReady(object sender, ColorImageFrameReadyEventArgs e)
@@ -83,9 +167,35 @@ namespace KinectPeopleTracker
                     {
                         frame.CopyPixelDataTo(colorData);
                         double totalIntensity = 0;
-                        for (int i = 0; i < colorData.Length; i += 4)
+
+                        if (colorImage == null) colorImage = new Bitmap(frame.Width, frame.Height);
+
+                        lock (this)
                         {
-                            totalIntensity += (colorData[i] + colorData[i + 1] + colorData[i + 2]) / 3;
+                            BitmapData data = colorImage.LockBits(new Rectangle(0, 0, colorImage.Width, colorImage.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                            unsafe
+                            {
+                                byte* p = (byte*)data.Scan0;
+                                int i = 0;
+                                for (int y = 0; y < data.Height; y++)
+                                {
+                                    for (int x = 0; x < data.Width; x++)
+                                    {
+                                        byte r = colorData[i];
+                                        byte g = colorData[i + 1];
+                                        byte b = colorData[i + 2];
+                                        totalIntensity += (r + g + b) / 3;
+                                        byte a = colorData[i + 3];
+                                        *p = r;
+                                        *(p + 1) = g;
+                                        *(p + 2) = b;
+                                        p += 3;
+                                        i += 4;
+                                    }
+                                    p += data.Stride - 3 * data.Width;
+                                }
+                            }
+                            colorImage.UnlockBits(data);
                         }
                         double averageIntensity = totalIntensity / ((double)frame.Width * frame.Height);
 
@@ -227,7 +337,16 @@ namespace KinectPeopleTracker
                             foreach (int index in toRemove)
                                 trackedPeople.Remove(index);
 
-                            if (recording && videoOut != null) videoOut.WriteVideoFrame(depthImage);
+                            if (recording && videoOut != null)
+                            {
+                                if (videoFrame == null) videoFrame = new Bitmap(1280, 720);
+                                g = Graphics.FromImage(videoFrame);
+                                g.DrawImage(colorImage, 0, 0, colorImage.Width, colorImage.Height);
+                                g.DrawImage(depthImage, colorImage.Width, 0, depthImage.Width, depthImage.Height);
+                                g.FillRectangle(Brushes.Black, 0, colorImage.Height, videoFrame.Width, videoFrame.Height);
+                                g.DrawString(personCount.ToString(), personCountFont, Brushes.White, colorImage.Width - g.MeasureString(personCount.ToString(), personCountFont).Width / 2, depthImage.Height + 20);
+                                videoOut.WriteVideoFrame(videoFrame);
+                            }
                             Invoke(new MethodInvoker(delegate { DisplayPanel.Refresh(); }));
                         }
 
@@ -286,10 +405,14 @@ namespace KinectPeopleTracker
 
         private void DisplayPanel_MouseClick(object sender, MouseEventArgs e)
         {
-            Properties.Settings.Default.Threshold = new Point(e.X, e.Y);
-            positioningExit = false;
-            ThresholdButton.Enabled = true;
-            DisplayPanel.Refresh();
+            if (positioningExit)
+            {
+                Properties.Settings.Default.Threshold = new Point(e.X, e.Y);
+                Properties.Settings.Default.Save();
+                positioningExit = false;
+                ThresholdButton.Enabled = true;
+                DisplayPanel.Refresh();
+            }
         }
 
         private void SizeCheckbox_CheckedChanged(object sender, EventArgs e)
@@ -338,7 +461,7 @@ namespace KinectPeopleTracker
             if (!recording)
             {
                 videoOut = new AForge.Video.FFMPEG.VideoFileWriter();
-                videoOut.Open("test.avi", 640, 480, 30, AForge.Video.FFMPEG.VideoCodec.WMV2);
+                videoOut.Open("test.avi", 1280, 720, 10, AForge.Video.FFMPEG.VideoCodec.MSMPEG4v3);
                 recording = true;
                 RecordVideoButton.Text = "Stop Recording";
             }
