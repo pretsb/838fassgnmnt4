@@ -33,7 +33,7 @@ namespace KinectPeopleTracker
         private Arduino arduino;
 
         private bool positioningExit = false;
-        private Dictionary<int, List<Tuple<PointF, int>>> trackedPeople;
+        private Dictionary<int, List<Tuple<PointF, float>>> trackedPeople;
 
         private VideoFileWriter videoOut = null;
         private bool recording = false;
@@ -42,7 +42,7 @@ namespace KinectPeopleTracker
         {
             InitializeComponent();
 
-            trackedPeople = new Dictionary<int, List<Tuple<PointF, int>>>();
+            trackedPeople = new Dictionary<int, List<Tuple<PointF, float>>>();
             personCountFont = new Font(Font.FontFamily, 64);
 
             PortChooser.Items.AddRange(SerialPort.GetPortNames());
@@ -90,7 +90,7 @@ namespace KinectPeopleTracker
                         double averageIntensity = totalIntensity / ((double)frame.Width * frame.Height);
 
                         // lights off
-                        if (averageIntensity < 50) 
+                        if (Properties.Settings.Default.EnableArm && averageIntensity < 50) 
                             arduino.Send("move");
 
                         frame.Dispose();
@@ -101,7 +101,7 @@ namespace KinectPeopleTracker
             catch { }
         }
 
-        internal class PersonCentroid { public float x, y, count; public PersonCentroid(float x, float y, float count) { this.x = x; this.y = y; this.count = count; } }
+        internal class PersonCentroid { public float x, y, count, depth; public PersonCentroid(float x, float y, float count, float depth) { this.x = x; this.y = y; this.count = count; this.depth = depth; } }
         void sensor_DepthFrameReady(object sender, DepthImageFrameReadyEventArgs e)
         {
             try
@@ -141,12 +141,13 @@ namespace KinectPeopleTracker
                                         if (player > 0)
                                         {
                                             if (!people.ContainsKey(player))
-                                                people[player] = new PersonCentroid(x, y, 1);
+                                                people[player] = new PersonCentroid(x, y, 1, depth);
                                             else
                                             {
                                                 people[player].x += x;
                                                 people[player].y += y;
                                                 people[player].count++;
+                                                people[player].depth += depth;
                                             }
                                         }
 
@@ -174,41 +175,46 @@ namespace KinectPeopleTracker
                             foreach (KeyValuePair<int, PersonCentroid> p in people)
                             {
                                 float x = p.Value.x / p.Value.count;
-                                float y = p.Value.x / p.Value.count;
-                                if (!trackedPeople.ContainsKey(p.Key)) trackedPeople[p.Key] = new List<Tuple<PointF, int>>();
-                                trackedPeople[p.Key].Add(new Tuple<PointF, int>(new PointF(x, y), (int)p.Value.count));
+                                float y = p.Value.y / p.Value.count;
+                                float d = p.Value.depth / p.Value.count;
+                                if (!trackedPeople.ContainsKey(p.Key)) trackedPeople[p.Key] = new List<Tuple<PointF, float>>();
+                                trackedPeople[p.Key].Add(new Tuple<PointF, float>(new PointF(x, y), d));
                             }
 
                             Point threshold = Properties.Settings.Default.Threshold;
 
                             // check for people who have disappeared and increment/decrement the counter
                             List<int> toRemove = new List<int>();
-                            foreach (KeyValuePair<int, List<Tuple<PointF, int>>> person in trackedPeople)
+                            foreach (KeyValuePair<int, List<Tuple<PointF, float>>> person in trackedPeople)
                             {
                                 if (!people.ContainsKey(person.Key))
                                 {
                                     // calculate path motion and length
                                     PointF p0 = person.Value[0].Item1;
                                     PointF p1 = person.Value[person.Value.Count - 1].Item1;
-                                    int count1 = person.Value[0].Item2;
-                                    int count2 = person.Value[person.Value.Count - 1].Item2;
+                                    float depth1 = person.Value[0].Item2;
+                                    float depth2 = person.Value[person.Value.Count - 1].Item2;
                                     float dx = p1.X - p0.X;
                                     float dy = p1.Y - p0.Y;
                                     float len = (float)Math.Sqrt(dx * dx + dy * dy);
-                                    float maxSize = 0; foreach (Tuple<PointF, int> f in person.Value) if (f.Item2 > maxSize) maxSize = f.Item2;
-                                    float sizeRatio = (float)maxSize / (float)count1;
+                                    //float maxSize = 0; foreach (Tuple<PointF, int> f in person.Value) if (f.Item2 > maxSize) maxSize = f.Item2;
+                                    //float sizeRatio = (float)maxSize / (float)count1;
+                                    float depthLen = Math.Abs(depth2 - depth1);
                                     float d1 = (float)Math.Sqrt((p0.X - threshold.X) * (p0.X - threshold.X) + (p0.Y - threshold.Y) * (p0.Y - threshold.Y));
                                     float d2 = (float)Math.Sqrt((p1.X - threshold.X) * (p1.X - threshold.X) + (p1.Y - threshold.Y) * (p1.Y - threshold.Y));
 
                                     // if it matches the appropriate motion pattern, adjust the room count
                                     bool sufficientMotion = len > 100;
-                                    bool sufficientSizeChange = (Properties.Settings.Default.UseSize && (sizeRatio > 1.25 || sizeRatio < 0.75));
-                                    bool sizeIncrement = Properties.Settings.Default.UseSize && ((!Properties.Settings.Default.InvertSize && sizeRatio > 1) || (Properties.Settings.Default.InvertSize && sizeRatio < 1));
-                                    bool sizeDecrement = Properties.Settings.Default.UseSize && ((!Properties.Settings.Default.InvertSize && sizeRatio < 1) || (Properties.Settings.Default.InvertSize && sizeRatio > 1));
+                                    //bool sufficientSizeChange = (Properties.Settings.Default.UseSize && (sizeRatio > 1.25 || sizeRatio < 0.75));
+                                    //bool sizeIncrement = Properties.Settings.Default.UseSize && ((!Properties.Settings.Default.InvertSize && sizeRatio > 1) || (Properties.Settings.Default.InvertSize && sizeRatio < 1));
+                                    //bool sizeDecrement = Properties.Settings.Default.UseSize && ((!Properties.Settings.Default.InvertSize && sizeRatio < 1) || (Properties.Settings.Default.InvertSize && sizeRatio > 1));
+                                    bool sufficientDepthChange = (Properties.Settings.Default.UseSize && depthLen > 500);
+                                    bool depthIncrement = Properties.Settings.Default.UseSize && ((!Properties.Settings.Default.InvertSize && depth2 < depth1) || (Properties.Settings.Default.InvertSize && depth1 < depth2));
+                                    bool depthDecrement = Properties.Settings.Default.UseSize && ((!Properties.Settings.Default.InvertSize && depth1 < depth2) || (Properties.Settings.Default.InvertSize && depth2 < depth1));
                                     bool positionIncrement = (!Properties.Settings.Default.InvertDirection && d1 < d2) || (Properties.Settings.Default.InvertDirection && d2 < d1);
                                     bool positionDecrement = (!Properties.Settings.Default.InvertDirection && d2 < d1) || (Properties.Settings.Default.InvertDirection && d1 < d2);
-                                    bool increment = (sufficientSizeChange && sizeIncrement) || (sufficientMotion && positionIncrement);
-                                    bool decrement = (sufficientSizeChange && sizeDecrement) || (sufficientMotion && positionDecrement);
+                                    bool increment = (sufficientDepthChange && depthIncrement) || (sufficientMotion && positionIncrement);
+                                    bool decrement = (sufficientDepthChange && depthDecrement) || (sufficientMotion && positionDecrement);
 
                                     if (decrement) personCount--;
                                     if (increment) personCount++;
