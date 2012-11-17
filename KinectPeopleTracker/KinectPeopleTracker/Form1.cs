@@ -146,7 +146,7 @@ namespace KinectPeopleTracker
                             }
                         }
 
-                        if (waveCounter >= 3) arduino.Send("move");
+                        if (waveCounter >= 3) { arduino.Send("move"); waveCounter = 0; }
                     }
 
                     frame.Dispose();
@@ -200,7 +200,7 @@ namespace KinectPeopleTracker
                         double averageIntensity = totalIntensity / ((double)frame.Width * frame.Height);
 
                         // lights off
-                        if (Properties.Settings.Default.EnableArm && averageIntensity < 50) 
+                        if (Properties.Settings.Default.EnableArm && averageIntensity < 50)// && personCount > 04) 
                             arduino.Send("move");
 
                         frame.Dispose();

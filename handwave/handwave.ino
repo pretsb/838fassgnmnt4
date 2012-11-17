@@ -30,7 +30,12 @@ void loop()
       xservo.write(pos);              // tell servo to go to position in variable 'pos'
       delay(10);                       // waits 15ms for the servo to reach the position
     }
-    for(pos = 45; pos < 90; pos+=1)
+    for(pos = 45; pos < 135; pos+=1)
+    {
+      xservo.write(pos);
+      delay(10);
+    }
+    for(pos = 135; pos > 90; pos-=1)
     {
       xservo.write(pos);
       delay(10);
